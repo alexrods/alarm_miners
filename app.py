@@ -65,7 +65,7 @@ async def check_active_miners():
             last_alert_time = None
 
         # Esperar 30 segundos antes de la siguiente verificación
-        await asyncio.sleep(30)
+        await asyncio.sleep(60)
 
 
 # Endpoint para verificar el webhook
