@@ -15,7 +15,7 @@ load_dotenv()
 WEBHOOK_TOKEN=os.environ["WEBHOOK_TOKEN"]
 SEND_TO=os.environ["PHONE_NUMBER"]
 TOTAL_LTC_WORKERS = 30
-TOTAL_BTC_WORKERS = 3
+TOTAL_BTC_WORKERS = 2
 
 
 app = FastAPI()
@@ -35,27 +35,30 @@ async def check_active_miners():
         btc_workers = workers["response"].get("btc_workers", np.nan)
         now = time.time()
         
-        # Construir el mensaje de alerta si alguno de los tokens tiene menos workers de los esperados
-        if ltc_workers < TOTAL_LTC_WORKERS or btc_workers < TOTAL_BTC_WORKERS:
-            in_alert = True
-           
-        # Se ha detectado una alerta
-        # Si no estábamos ya en alerta o han pasado 5 minutos desde la última notificación, enviamos el mensaje
-        if (not in_alert) or (last_alert_time is None) or (now - last_alert_time >= alert_interval):
-            send_message(SEND_TO, ltc_workers, btc_workers, in_alert)
+        # Verificar si hay una situación de alerta
+        current_alert_state = ltc_workers < TOTAL_LTC_WORKERS or btc_workers < TOTAL_BTC_WORKERS
+        
+        # Caso 1: Entramos en estado de alerta
+        if current_alert_state and not in_alert:
+            send_message(SEND_TO, ltc_workers, btc_workers, in_alert=True)
             last_alert_time = now
-            print(f"Alerta enviada: {datetime.now()}")
             in_alert = True
-        else:
-            # Si no hay alerta y previamente se había detectado, informamos que todo está bien
-            if in_alert:
-                # post_message(message="Alarma todo está bien: Workers reestablecidos")
-                send_message(SEND_TO, ltc_workers, btc_workers, in_alert=False)
-                in_alert = False
-            # Reiniciamos la variable de notificación
+            print(f"Alerta inicial enviada: {datetime.now()}")
+        
+        # Caso 2: Seguimos en estado de alerta, verificar si toca reenviar
+        elif current_alert_state and in_alert and (now - last_alert_time >= alert_interval):
+            send_message(SEND_TO, ltc_workers, btc_workers, in_alert=True)
+            last_alert_time = now
+            print(f"Alerta repetida enviada: {datetime.now()}")
+        
+        # Caso 3: Salimos del estado de alerta
+        elif not current_alert_state and in_alert:
+            send_message(SEND_TO, ltc_workers, btc_workers, in_alert=False)
+            in_alert = False
             last_alert_time = None
-
-        # Esperar 30 segundos antes de la siguiente verificación
+            print(f"Recuperación enviada: {datetime.now()}")
+        
+        # Esperar antes de la siguiente verificación
         await asyncio.sleep(60)
 
 
