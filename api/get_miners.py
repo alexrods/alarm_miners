@@ -1,6 +1,7 @@
 import os
 import httpx
 import numpy as np
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,6 +37,7 @@ async def monitor_api():
                     "btc_workers": active_workers_btc
                 }
             }
+            print(response)
             return response
             
 # asyncio.run(monitor_api()) 

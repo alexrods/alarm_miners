@@ -2,7 +2,7 @@ import os
 import time
 import json
 import requests
-from fastapi import FastAPI, Request, HTTPException, Response, BackgroundTasks
+from fastapi import FastAPI
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -13,16 +13,40 @@ app = FastAPI()
 WHATSAPP_API_URL=os.environ["WHATSAPP_API_URL"]
 WHATSAPP_ACCESS_TOKEN=os.environ["WHATSAPP_ACCESS_TOKEN"]
 
-def send_message(to, message):
+def send_message(to, ltc_workers, btc_workers, in_alert):
+    if in_alert:
+        template = "workers_alert"
+    else:
+        template = "everything_ok_workers_"
     try:
-        payload = json.dumps({
-            "messaging_product": "whatsapp",
-            "to": to,
-            "type": "text",
-            "text": {
-            "body": message
+        payload = json.dumps(
+            {
+                "messaging_product": "whatsapp",
+                "to": to,  
+                "type": "template",
+                "template": {
+                    "name": template,  
+                    "language": {
+                        "code": "en"
+                    },
+                    "components": [
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": ltc_workers
+                                },
+                                {
+                                    "type": "text",
+                                    "text": btc_workers
+                                }
+                            ]
+                        }
+                    ]
+                }
             }
-        })
+        )
 
         headers = {
             'Authorization': f'Bearer {WHATSAPP_ACCESS_TOKEN}',
@@ -36,5 +60,6 @@ def send_message(to, message):
         return {
             'error': True,
             'code': 305,
-            'message': 'An error occurred while processing the request.'
+            'message': f'An error occurred while processing the request. {error}'
         }
+    

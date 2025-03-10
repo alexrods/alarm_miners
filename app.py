@@ -7,18 +7,18 @@ import numpy as np
 from fastapi import FastAPI, Request, HTTPException, Response, BackgroundTasks
 from api.get_miners import monitor_api
 from meta.send_message import send_message
-
+from datetime import datetime
 from dotenv import load_dotenv
+
 load_dotenv()
-
-app = FastAPI()
-
 
 WEBHOOK_TOKEN=os.environ["WEBHOOK_TOKEN"]
 SEND_TO=os.environ["PHONE_NUMBER"]
-
 TOTAL_LTC_WORKERS = 30
-TOTAL_BTC_WORKERS = 2
+TOTAL_BTC_WORKERS = 3
+
+
+app = FastAPI()
 
 
 async def check_active_miners():
@@ -36,30 +36,21 @@ async def check_active_miners():
         now = time.time()
         
         # Construir el mensaje de alerta si alguno de los tokens tiene menos workers de los esperados
-        alert_message = None
         if ltc_workers < TOTAL_LTC_WORKERS or btc_workers < TOTAL_BTC_WORKERS:
-            if ltc_workers < TOTAL_LTC_WORKERS and btc_workers < TOTAL_BTC_WORKERS:
-                alert_message = (
-                    f"Falla en los workers:\n"
-                    f"LTC WORKERS: {ltc_workers}\n"
-                    f"BTC WORKERS: {btc_workers}"
-                )
-            elif ltc_workers < TOTAL_LTC_WORKERS:
-                alert_message = f"Falla en los workers:\nLTC WORKERS: {ltc_workers}"
-            elif btc_workers < TOTAL_BTC_WORKERS:
-                alert_message = f"Falla en los workers:\nBTC WORKERS: {btc_workers}"
-
-        if alert_message:
-            # Se ha detectado una alerta
-            # Si no estábamos ya en alerta o han pasado 5 minutos desde la última notificación, enviamos el mensaje
-            if (not in_alert) or (last_alert_time is None) or (now - last_alert_time >= alert_interval):
-                send_message(SEND_TO, alert_message)
-                last_alert_time = now
-                in_alert = True
+            in_alert = True
+           
+        # Se ha detectado una alerta
+        # Si no estábamos ya en alerta o han pasado 5 minutos desde la última notificación, enviamos el mensaje
+        if (not in_alert) or (last_alert_time is None) or (now - last_alert_time >= alert_interval):
+            send_message(SEND_TO, ltc_workers, btc_workers, in_alert)
+            last_alert_time = now
+            print(f"Alerta enviada: {datetime.now()}")
+            in_alert = True
         else:
             # Si no hay alerta y previamente se había detectado, informamos que todo está bien
             if in_alert:
-                send_message(SEND_TO, message="Alarma todo está bien: Workers reestablecidos")
+                # post_message(message="Alarma todo está bien: Workers reestablecidos")
+                send_message(SEND_TO, ltc_workers, btc_workers, in_alert=False)
                 in_alert = False
             # Reiniciamos la variable de notificación
             last_alert_time = None
